@@ -575,7 +575,8 @@ namespace SkierFramework
                 return;
             }
 
-            if (_spriteCache.TryGetValue(atlasPath, out SpriteAtlas atlas))
+            SpriteAtlas atlas = null;
+            if (_spriteCache.TryGetValue(atlasPath, out atlas))
             {
                 callback?.Invoke(atlas.Get(spriteName));
             }
@@ -588,7 +589,7 @@ namespace SkierFramework
                         Debug.LogErrorFormat("[LoadSpriteAsync] load failed：atlasPath = {0}！", atlasPath);
                         return;
                     }
-                    if (_spriteCache.TryGetValue(atlasPath, out SpriteAtlas atlas))
+                    if (_spriteCache.TryGetValue(atlasPath, out atlas))
                     {
                         callback?.Invoke(atlas.Get(spriteName));
                         return;

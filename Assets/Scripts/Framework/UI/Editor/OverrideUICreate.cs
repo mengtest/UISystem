@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using TMPro;
-using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.U2D;
@@ -53,7 +52,7 @@ namespace SkierFramework
         public static void CreateButton()
         {
             var image = Create<Image>("Button");
-            var button = image.AddComponent<Button>();
+            var button = image.GetOrAddComponent<Button>();
             image.maskable = image.GetComponentInParent<RectMask2D>() != null || image.GetComponentInParent<Mask>() != null;
             image.rectTransform.sizeDelta = new Vector2(160, 30);
             image.gameObject.SetLayerRecursively(Layer.UI);
@@ -83,7 +82,7 @@ namespace SkierFramework
         public static void CreateButtonTextMeshPro()
         {
             var image = Create<Image>("Button");
-            var button = image.AddComponent<Button>();
+            var button = image.GetOrAddComponent<Button>();
             var textMeshPro = Create<TextMeshProUGUI>("Text", button.transform);
             textMeshPro.raycastTarget = false;
             textMeshPro.maskable = textMeshPro.GetComponentInParent<RectMask2D>() != null || textMeshPro.GetComponentInParent<Mask>() != null;
@@ -114,18 +113,20 @@ namespace SkierFramework
             var image = Create<Image>("UIScrollView");
             image.raycastTarget = true;
             image.maskable = false;
-            image.rectTransform.sizeDelta = new Vector2(200, 200);
-            var scrollRect = image.AddComponent<ScrollRect>();
-            var uIScrollView = image.AddComponent<UIScrollView>();
+            image.rectTransform.sizeDelta = new Vector2(300, 400);
+            image.color = new Color(1, 1, 1, 0.5f);
+            var scrollRect = image.GetOrAddComponent<ScrollRect>();
+            var uIScrollView = image.GetOrAddComponent<UIScrollView>();
 
             var viewportImage = Create<Image>("Viewport", uIScrollView.transform);
             viewportImage.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UIMask.psd");
             viewportImage.type = Image.Type.Sliced;
             viewportImage.raycastTarget = true;
             viewportImage.maskable = true;
+            viewportImage.color = new Color(1, 1, 1, 0f);
 
             var viewport = viewportImage.transform as RectTransform;
-            viewport.AddComponent<RectMask2D>();
+            viewport.GetOrAddComponent<RectMask2D>();
             viewport.anchorMin = Vector2.zero;
             viewport.anchorMax = Vector2.one;
             viewport.pivot = new Vector2(0, 1);
@@ -214,7 +215,7 @@ namespace SkierFramework
             var verticalScorllImage = Create<Image>(name, parent);
             verticalScorllImage.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Background.psd");
             verticalScorllImage.type = Image.Type.Sliced;
-            var verticalScroll = verticalScorllImage.AddComponent<Scrollbar>();
+            var verticalScroll = verticalScorllImage.GetOrAddComponent<Scrollbar>();
             var verticalRect = verticalScroll.transform as RectTransform;
             verticalRect.anchorMin = Vector2.zero;
             verticalRect.anchorMax = new Vector2(1, 0);
@@ -247,7 +248,7 @@ namespace SkierFramework
             var image = Create<Image>("Slider");
             image.color = Color.grey;
             image.rectTransform.sizeDelta = new Vector2(160, 20);
-            var slider = image.AddComponent<Slider>();
+            var slider = image.GetOrAddComponent<Slider>();
             slider.interactable = false;
             slider.transition = Selectable.Transition.None;
 
@@ -273,6 +274,28 @@ namespace SkierFramework
         {
             if (string.IsNullOrEmpty(name))
                 name = typeof(T).Name;
+
+            if (parent == null)
+            {
+                parent = Selection.activeTransform;
+            }
+            var stage = UnityEditor.SceneManagement.StageUtility.GetCurrentStageHandle();
+            // 检查是否在Prefab编辑模式
+            if (stage != UnityEditor.SceneManagement.StageUtility.GetMainStageHandle()
+                && parent == null)
+            {
+                // 在Prefab编辑模式下，自动用当前编辑的Prefab根对象为parent
+                var transforms = stage.FindComponentsOfType<Transform>();
+                parent = transforms[0];
+                while (parent.parent != null)
+                {
+                    parent = parent.parent;
+                }
+                if (parent.name.Contains("(Environment)"))
+                {
+                    parent = parent.GetChild(0);
+                }
+            }
             GameObject go = new GameObject(name);
             if (parent == null)
             {

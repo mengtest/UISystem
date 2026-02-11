@@ -12,6 +12,7 @@ namespace SkierFramework
         public string path;
         public bool isWindow;
         public string uiLayer;
+        public bool isAutoNavigation;
     }
 
     public class UIConfig

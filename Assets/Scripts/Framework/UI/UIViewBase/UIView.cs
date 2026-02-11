@@ -14,6 +14,7 @@ namespace SkierFramework
         public GameObject DefaultSelect;
 
         public UIViewController Controller => _controller;
+        public object userData;
 
         public virtual void OnInit(UIControlData uIControlData, UIViewController controller)
         {
@@ -42,6 +43,7 @@ namespace SkierFramework
         /// </summary>
         public virtual void OnOpen(object userData)
         {
+            this.userData = userData;
             SortOrder();
 
             _canvas.overrideSorting = true;

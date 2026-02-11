@@ -22,6 +22,8 @@ public class Launcher : MonoBehaviour
     {
         yield return StartCoroutine(ResourceManager.Instance.InitializeAsync());
 
+        UIManager.Instance.Initialize();
+
         yield return UIManager.Instance.InitUIConfig();
 
         yield return UIManager.Instance.Preload(UIType.UILoadingView);

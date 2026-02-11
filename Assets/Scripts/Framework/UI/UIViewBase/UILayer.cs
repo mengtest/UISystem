@@ -21,7 +21,7 @@ namespace SkierFramework
         public Canvas canvas;
         private int maxOrder;
         private HashSet<int> orders;
-        public Stack<UIViewController> openedViews;
+        public List<UIViewController> openedViews;
 
         public UILayerLogic(UILayer layer, Canvas canvas)
         {
@@ -29,7 +29,7 @@ namespace SkierFramework
             this.canvas = canvas;
             maxOrder = (int)layer;
             orders = new HashSet<int>();
-            openedViews = new Stack<UIViewController>();
+            openedViews = new List<UIViewController>();
         }
 
         public void CloseUI(UIViewController closedUI)
@@ -40,7 +40,7 @@ namespace SkierFramework
 
             if (openedViews.Count > 0)
             {
-                var topViewController = openedViews.Peek();
+                var topViewController = openedViews[openedViews.Count - 1];
                 // 拿到最上层UI，如果被暂停的话，则恢复，
                 // 暂停和恢复不影响其是否被覆盖隐藏，只要不是最上层UI都应该标记暂停状态
                 if (topViewController != null && topViewController.isPause)
@@ -67,10 +67,20 @@ namespace SkierFramework
             }
         }
 
-        public void OpenUI(UIViewController openedUI)
+        public void OpenUI(UIViewController openedUI, bool isFirstOpen)
         {
-            if (openedUI.order == 0)
+            if (isFirstOpen)
             {
+                // 第一次开启时，由于异步加载原因，在Go没被加载时就先申请了order，因此这时候order不为0，也不需要重新加入栈中
+            }
+            else
+            {
+                if (openedUI.order != 0)
+                {
+                    // 没出其他问题的情况下，说明这个UI之前并没有被关闭过
+                    Debug.LogError($"{openedUI.uiType} 已经是打开的了，又被再次打开了，异常情况！！");
+                    PushOrder(openedUI);
+                }
                 openedUI.order = PopOrder(openedUI);
             }
 
@@ -94,7 +104,10 @@ namespace SkierFramework
             }
         }
 
-        public void PushOrder(UIViewController closedUI)
+        /// <summary>
+        /// 关闭界面时，归还已分配的层级
+        /// </summary>
+        public bool PushOrder(UIViewController closedUI)
         {
             int order = closedUI.order;
             if (orders.Remove(order))
@@ -105,34 +118,17 @@ namespace SkierFramework
                 {
                     maxOrder = Mathf.Max(maxOrder, item);
                 }
-
-                // 移除界面
-                List<UIViewController> list = ListPool<UIViewController>.Get();
-                while (openedViews.Count > 0)
-                {
-                    var view = openedViews.Pop();
-                    if (view != closedUI)
-                    {
-                        list.Add(view);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                for (int i = list.Count - 1; i >= 0; i--)
-                {
-                    openedViews.Push(list[i]);
-                }
-                ListPool<UIViewController>.Release(list);
+                openedViews.Remove(closedUI);
+                return true;
             }
+            return false;
         }
 
-        public int PopOrder(UIViewController uIViewController)
+        public int PopOrder(UIViewController openedUI = null)
         {
-            maxOrder += 10;
+            maxOrder += 30;
             orders.Add(maxOrder);
-            openedViews.Push(uIViewController);
+            openedViews.Add(openedUI);
             return maxOrder;
         }
     }

@@ -6,6 +6,9 @@ namespace SkierFramework
         UILoginView,
         UIMessageBoxView,
 		UITestView,
+		UITestView1,
+		UITestView2,
+		UITestView3,
 		Max,
     }
 }

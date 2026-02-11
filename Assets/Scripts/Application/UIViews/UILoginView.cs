@@ -53,6 +53,8 @@ namespace SkierFramework
         [ControlBinding]
         private Button ButtonSetting;
         [ControlBinding]
+        private Button ButtonJump;
+        [ControlBinding]
         private UIScrollView UIScrollView;
         [ControlBinding]
         private GameObject Item;
@@ -76,6 +78,10 @@ namespace SkierFramework
             ButtonSetting.AddClick(() =>
             {
                 UIManager.Instance.Open(UIType.UITestView);
+            });
+            ButtonJump.AddClick(() =>
+            {
+                UIManager.Instance.Open(UIType.UITestView1);
             });
 
             UIScrollView.OnSelectChanged += (index) =>

@@ -53,6 +53,7 @@ public class UICreateWindow : EditorWindow
 
     private bool isWindow = true;
     private UILayer layer = UILayer.NormalLayer;
+    private bool isAutoNavigation = false;
 
     private void OnEnable()
     {
@@ -78,6 +79,7 @@ public class UICreateWindow : EditorWindow
     private void OnGUI()
     {
         EditorGUILayout.LabelField("通过[Tools/UI管理]可以打开");
+        EditorGUILayout.HelpBox("修改UIControlData时不要重建删了创建，而是右键Prefab上的UIControlData组件，点击复制代码到剪贴板，主动粘贴到对应代码块！！！", MessageType.Warning);
         scroll = EditorGUILayout.BeginScrollView(scroll);
         {
             EditorGUILayout.HelpBox("UI基础文件", MessageType.Info);
@@ -143,6 +145,7 @@ public class UICreateWindow : EditorWindow
 
                             isWindow = EditorGUILayout.Toggle("是否为窗口", isWindow);
                             layer = (UILayer)EditorGUILayout.EnumPopup("UILayer设置", layer);
+                            isAutoNavigation = EditorGUILayout.Toggle("是否激活自动导航(测试阶段)", isAutoNavigation);
 
                             var defaultColor = GUI.color;
                             GUI.color = Color.green;
@@ -165,6 +168,7 @@ public class UICreateWindow : EditorWindow
                                     path = AssetDatabase.GetAssetPath(uiPrefab),
                                     isWindow = isWindow,
                                     uiLayer = layer.ToString(),
+                                    isAutoNavigation = isAutoNavigation,
                                 };
 
                                 uiJsonDatas.Add(uiName, jsonData);
@@ -191,6 +195,7 @@ public class UICreateWindow : EditorWindow
                             jsonData.isWindow = EditorGUILayout.Toggle("是否为窗口", jsonData.isWindow);
                             Enum.TryParse(jsonData.uiLayer, out UILayer layer);
                             jsonData.uiLayer = EditorGUILayout.EnumPopup("UILayer设置", layer).ToString();
+                            jsonData.isAutoNavigation = EditorGUILayout.Toggle("是否激活自动导航", jsonData.isAutoNavigation);
 
                             var defaultColor = GUI.color;
                             GUI.color = Color.green;

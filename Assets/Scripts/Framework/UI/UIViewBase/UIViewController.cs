@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.ResourceManagement.AsyncOperations;
 
@@ -99,11 +98,14 @@ namespace SkierFramework
             }
             else
             {
+                // 如果之前打开过，再次掉OpenUI，需要把层级给他拉上来
+                // 设计上关于跳转相关的，不应该通过底层的遮挡关系来实现，只允许一个UI同时只能被开启1次。
                 if (!isFirstOpen && isOpen && order > 0)
                 {
                     TrueClose();
                 }
-                TrueOpen(userData, callback);
+
+                TrueOpen(userData, callback, isFirstOpen);
                 if (uiViewAnim != null)
                 {
                     uiViewAnim.Open();
@@ -111,9 +113,13 @@ namespace SkierFramework
             }
         }
 
-        public void Close(Action callback = null)
+        public void Close(Action callback = null, bool isJump = false)
         {
             isOpen = false;
+            if (!isJump)
+            {
+                UIManager.Instance.OnUIClose(uiType);
+            }
             if (isLoading) return;
 
             if (uiView != null)
@@ -145,9 +151,9 @@ namespace SkierFramework
             order = 0;
         }
 
-        private void TrueOpen(object userData = null, Action callback = null)
+        private void TrueOpen(object userData = null, Action callback = null, bool isFirstOpen = false)
         {
-            uiLayer.OpenUI(this);
+            uiLayer.OpenUI(this, isFirstOpen);
             SetVisible(true);
             // 刷新一下显示
             AddTopViewNum(0);

@@ -93,6 +93,14 @@ namespace SkierFramework
         }
 
         /// <summary>
+        /// 刷新整个scrollView
+        /// </summary>
+        public void UpdateList<T>(IList dataList, GameObject prefab, bool isKeepPos = false, object userData = null)
+        {
+            UpdateList(dataList, prefab, typeof(T), isKeepPos, userData);
+        }
+
+        /// <summary>
         /// 刷新整个scrollview
         /// </summary>
         /// <param name="dataList">数据</param>

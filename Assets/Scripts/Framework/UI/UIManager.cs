@@ -1,9 +1,9 @@
-﻿using System;
+﻿using DG.Tweening;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.EventSystems;
-using DG.Tweening;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace SkierFramework
 {
@@ -15,10 +15,21 @@ namespace SkierFramework
         AutoBlack,  // 自动黑边(选中左右或上下黑边最少的一方)
     }
 
+    public struct UIJumpData
+    {
+        public UIType curUIType;
+        public object curUserData;
+        public UIType nextUIType;
+        public object nextUserData;
+    }
+
     public class UIManager : SingletonMono<UIManager>
     {
-        public int width = 1080;
-        public int height = 1920;
+        /// <summary>
+        /// 需要修改分辨率 根据实际情况
+        /// </summary>
+        public int width = 1920;
+        public int height = 1080;
         public UIBlackType uiBlackType = UIBlackType.None;
 
         private Transform _root;
@@ -39,21 +50,24 @@ namespace SkierFramework
         private Dictionary<UILayer, UILayerLogic> _layers;
         private HashSet<UIType> _openViews;
         private HashSet<UIType> _residentViews;
+        private List<UIJumpData> _uiJumpDatas;
 
         public EventSystem EventSystem { get; private set; }
         public EventController<UIEvent> Event { get; private set; }
+        public Camera UICamera => _uiCamera;
 
-        private void Awake()
-        {
-            Initialize();
-        }
+        // Debug用
+        public List<UIJumpData> UIJumpDatas => _uiJumpDatas;
 
-        private void Initialize()
+        public void Initialize()
         {
+            if (_viewControllers != null) return;
+
             _layers = new Dictionary<UILayer, UILayerLogic>();
             _viewControllers = new Dictionary<UIType, UIViewController>();
             _openViews = new HashSet<UIType>();
             _residentViews = new HashSet<UIType>();
+            _uiJumpDatas = new List<UIJumpData>();
             Event = new EventController<UIEvent>();
 
             _worldCamera = Camera.main;
@@ -78,6 +92,20 @@ namespace SkierFramework
             _uiCamera.transform.SetParent(_root);
             _uiCamera.orthographic = true;
             _uiCamera.clearFlags = CameraClearFlags.Depth;
+            // URP管线下 需要通过UniversalAdditionalCameraData设置renderType = Overlay，并将该相机加到主相机的Camera Stack中
+            // URP管辖下 需要自行开启下面注释代码
+            {
+                //_uiCamera.GetOrAddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>().renderType 
+                //    = UnityEngine.Rendering.Universal.CameraRenderType.Overlay;
+                //if (_worldCamera != null)
+                //{
+                //    var cameraData = _worldCamera.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+                //    if (cameraData != null)
+                //    {
+                //        cameraData.cameraStack.Add(_uiCamera);
+                //    }
+                //}
+            }
 
             EventSystem = EventSystem.current;
 
@@ -91,12 +119,6 @@ namespace SkierFramework
             }
             _blackMask = UIExtension.CreateBlackMask(_layers[UILayer.BlackMaskLayer].canvas.transform);
             _backgroundMask = UIExtension.CreateBlackMask(_layers[UILayer.BackgroundLayer].canvas.transform);
-        }
-
-        private void Update()
-        {
-            // TODO 不应该Update设置应该放在屏幕状态变动事件里
-            ChangeOrCreateBlack();
         }
 
         /// <summary>
@@ -247,6 +269,9 @@ namespace SkierFramework
             _residentViews.Add(type);
         }
 
+        /// <summary>
+        /// 开启UI
+        /// </summary>
         public void Open(UIType type, object userData = null, Action callback = null)
         {
             if (!_viewControllers.ContainsKey(type))
@@ -257,6 +282,73 @@ namespace SkierFramework
 
             _openViews.Add(type);
             _viewControllers[type].Open(userData, callback);
+        }
+
+        /// <summary>
+        /// 关闭UI
+        /// </summary>
+        public void Close(UIType type, Action callback = null, bool isJump = false)
+        {
+            if (!_viewControllers.ContainsKey(type))
+            {
+                Debug.LogErrorFormat("未配置uiType:{0}， 请检查UIConfig.cs！", type.ToString());
+                return;
+            }
+
+            _openViews.Remove(type);
+            _viewControllers[type].Close(callback, isJump);
+        }
+
+        /// <summary>
+        /// UI跳转 
+        /// 解决想要有依次打开1->2->3->2，并在关闭2时依次是2->3->2->1的恢复情况
+        /// 跳转问题不该由底层的UI遮挡问题来实现，属于两套逻辑
+        /// UI遮挡问题的目的：解决底下看不见的UI的重复渲染，不管理其他业务。
+        /// 
+        /// 逻辑：从 curUI 跳转到 nextUI，如果nextUI被关闭则重新打开curUI
+        /// </summary>
+        public void JumpUI(UIType curUIType, object curUserData, UIType nextUIType, object nextUserData)
+        {
+            if (IsOpen(curUIType))
+            {
+                int order = _viewControllers[curUIType].order;
+                // 由于存在异步，所以必须等他先开启完毕后，再关闭
+                Open(nextUIType, nextUserData, () => {
+                    if (order == _viewControllers[curUIType].order)
+                    {
+                        Close(curUIType, null, true);
+                    }
+                });
+            }
+            else
+            {
+                Debug.LogError($"跳转UI从 {curUIType} 跳转到 {nextUIType}时，{curUIType}并没有被开启！");
+            }
+            _uiJumpDatas.Add(new UIJumpData
+            {
+                curUIType = curUIType,
+                curUserData = curUserData,
+                nextUIType = nextUIType,
+                nextUserData = nextUserData
+            });
+        }
+
+        /// <summary>
+        /// UI关闭时回调，把跳转之前的UI重新还原。
+        /// </summary>
+        public void OnUIClose(UIType type)
+        {
+            if (_uiJumpDatas.Count == 0) return;
+
+            for (int i = _uiJumpDatas.Count - 1; i >= 0; i--)
+            {
+                if (_uiJumpDatas[i].nextUIType == type)
+                {
+                    Open(_uiJumpDatas[i].curUIType, _uiJumpDatas[i].curUserData);
+                    _uiJumpDatas.RemoveAt(i);
+                    break;
+                }
+            }
         }
 
         public AsyncOperationHandle Preload(UIType type)
@@ -282,18 +374,6 @@ namespace SkierFramework
             return _openViews.Contains(type);
         }
 
-        public void Close(UIType type, Action callback = null)
-        {
-            if (!_viewControllers.ContainsKey(type))
-            {
-                Debug.LogErrorFormat("未配置uiType:{0}， 请检查UIConfig.cs！", type.ToString());
-                return;
-            }
-
-            _openViews.Remove(type);
-            _viewControllers[type].Close(callback);
-        }
-
         /// <summary>
         /// UI建议都用事件进行交互，最好不使用该接口
         /// </summary>
@@ -308,8 +388,24 @@ namespace SkierFramework
             return _viewControllers[type].uiView as T;
         }
 
+        /// <summary>
+        /// 获得已经打开的UI，没开返回空
+        /// </summary>
+        public UIView GetOpenedView(UIType type)
+        {
+            if (_viewControllers.TryGetValue(type, out var viewController))
+            {
+                if (viewController.uiView != null && viewController.isOpen)
+                {
+                    return viewController.uiView;
+                }
+            }
+            return null;
+        }
+
         public void CloseAll(UIType ignoreType = UIType.Max, bool closeResidentView = false)
         {
+            _uiJumpDatas.Clear();
             var list = ListPool<UIType>.Get();
 
             foreach (var uiType in _openViews)
@@ -331,6 +427,7 @@ namespace SkierFramework
 
         public void ReleaseAll()
         {
+            _uiJumpDatas.Clear();
             foreach (var controller in _viewControllers.Values)
             {
                 if (!_residentViews.Contains(controller.uiType))
@@ -373,7 +470,7 @@ namespace SkierFramework
         {
             if (_layers.TryGetValue(UILayer.NormalLayer, out var layer) && layer.openedViews.Count > 0)
             {
-                var viewController = layer.openedViews.Peek();
+                var viewController = layer.openedViews[layer.openedViews.Count - 1];
                 if (viewController.uiView != null)
                 {
                     viewController.uiView.OnCancel();

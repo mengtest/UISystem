@@ -58,6 +58,10 @@ public class SingletonMono<T> : MonoBehaviour where T : MonoBehaviour
                     singleton.name = typeof(T).ToString();
                     DontDestroyOnLoad(singleton);
                 }
+                else
+                {
+                    DontDestroyOnLoad(_instance.gameObject);
+                }
             }
             return _instance;
         }

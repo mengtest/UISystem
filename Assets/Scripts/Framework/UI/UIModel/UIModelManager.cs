@@ -16,6 +16,7 @@ namespace SkierFramework
         private Light m_UIModelLight;
 
         public Camera UICamera => m_UICamera;
+        public Light UILight => m_UIModelLight;
 
         public override void OnInitialize()
         {
@@ -30,7 +31,7 @@ namespace SkierFramework
             m_UIModelLight = new GameObject("UIModelLight").GetOrAddComponent<Light>();
             m_UIModelLight.transform.SetParentEx(m_UIModelRoot);
 
-            m_UIModelLight.transform.localEulerAngles = new Vector3(36, 30, 0);
+            m_UIModelLight.transform.localEulerAngles = new Vector3(36, 180, 0);
             m_UIModelLight.cookieSize = 10;
             m_UIModelLight.type = LightType.Directional;
             m_UIModelLight.cullingMask = 1 << Layer.UI | 1 << Layer.UIRenderToTarget;
